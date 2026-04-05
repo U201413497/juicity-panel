@@ -38,7 +38,7 @@ LimitNOFILE=infinity
 
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/juicity-server.service
-touch /usr/local/etc/juicity/server.json
+mkdir /usr/local/etc/juicity && touch /usr/local/etc/juicity/server.json
 echo "
 {
     "listen": ":23182",
