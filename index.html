@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Juicity Pro Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; background: #f1f5f9; color: #1e293b; }
+        .hidden { display: none !important; }
+        #main-section { display: flex; min-height: 100vh; }
+        aside { width: 240px; background: #0f172a; color: #cbd5e1; flex-shrink: 0; display: flex; flex-direction: column; }
+        .nav-item { display: block; width: 100%; padding: 15px 20px; text-align: left; background: none; border: none; color: inherit; cursor: pointer; border-left: 4px solid transparent; }
+        .nav-item.active { background: #1e293b; color: white; border-left-color: #3b82f6; }
+        main { flex: 1; padding: 30px; }
+        .card { background: white; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        input, select { width: 100%; padding: 8px; margin: 5px 0 15px; border: 1px solid #e2e8f0; border-radius: 6px; outline: none; transition: 0.2s; }
+        input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        button { padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: bold; transition: 0.2s; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-dark { background: #1e293b; color: white; }
+        .btn-outline { background: white; border: 1px solid #e2e8f0; color: #1e293b; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 100; }
+        .modal.active { display: flex; }
+        .pagination-ctrl { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; padding-top: 15px; border-top: 1px solid #f1f5f9; }
+    </style>
+</head>
+<body>
+    <div id="login-section" class="hidden">
+        <div class="card" style="width: 350px; margin: 100px auto; text-align: center;">
+            <h2 style="margin-bottom: 20px; font-weight: bold;">Juicity Login</h2>
+            <input id="user" type="text" placeholder="Username">
+            <input id="pass" type="password" placeholder="Password">
+            <button onclick="login()" class="btn-dark" style="width: 100%;">Sign In</button>
+        </div>
+    </div>
+
+    <div id="main-section" class="hidden">
+        <aside>
+            <div style="padding: 20px; font-weight: bold; color: white; font-size: 1.2rem;">JUICITY</div>
+            <nav style="flex: 1;">
+                <button onclick="switchTab('home')" id="tab-btn-home" class="nav-item">Home</button>
+                <button onclick="switchTab('config')" id="tab-btn-config" class="nav-item">Core Config</button>
+                <button onclick="switchTab('users')" id="tab-btn-users" class="nav-item">User Management</button>
+                <button onclick="switchTab('db')" id="tab-btn-db" class="nav-item">DB Management</button>
+                <button onclick="switchTab('auth')" id="tab-btn-auth" class="nav-item">Admin Settings</button>
+            </nav>
+            <button onclick="logout()" class="nav-item text-red-400 hover:text-red-200" style="margin-bottom: 20px;">Logout</button>
+        </aside>
+        <main>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <h2 id="tab-title">System Status</h2>
+                <button id="save-btn" onclick="save()" class="btn-primary hidden">Save & Restart</button>
+            </div>
+
+            <div id="tab-home" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="card"><div>CPU Usage</div><div id="stat-cpu" class="text-xl font-bold">-</div></div>
+                <div class="card"><div>Memory (Used/Total)</div><div id="stat-mem" class="text-xl font-bold">-</div></div>
+                <div class="card"><div>Juicity Uptime</div><div id="stat-j-uptime" class="text-xl font-bold">-</div></div>
+                <div class="card"><div>Server Uptime</div><div id="stat-s-uptime" class="text-xl font-bold">-</div></div>
+                <div class="card md:col-span-2"><div>Juicity Version</div><div id="stat-version" class="text-sm font-mono text-blue-600">-</div></div>
+            </div>
+
+            <div id="tab-config" class="card hidden">
+                <label>Listen Port</label><input id="set-listen" placeholder=":23182">
+                <label>Domain</label><input id="set-domain" placeholder="example.com">
+                <label>Cert Path</label><input id="set-certificate">
+                <label>Key Path</label><input id="set-private_key">
+                <label>Congestion</label><input id="set-congestion_control" placeholder="bbr">
+            </div>
+
+            <div id="tab-users" class="card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <button onclick="addUser()" class="btn-dark">+ Add User</button>
+                    <select id="page-size-select" onchange="changePageSize(this.value)" style="width: 100px; margin: 0;">
+                        <option value="50" selected>50 / Page</option>
+                        <option value="100">100 / Page</option>
+                    </select>
+                </div>
+                <table>
+                    <thead><tr><th width="15%">Note</th><th width="15%">Pass</th><th width="40%">UUID (Editable)</th><th width="15%">Expiry</th><th width="15%">Action</th></tr></thead>
+                    <tbody id="user-table-body"></tbody>
+                </table>
+                <div class="pagination-ctrl">
+                    <span id="total-users-count" style="font-size: 0.8rem; color: #64748b;">Total: 0</span>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="prev-page-btn" onclick="changePage(-1)" class="btn-outline">Prev</button>
+                        <span id="page-info-text" style="font-size: 0.8rem; font-weight: bold;">Page 1</span>
+                        <button id="next-page-btn" onclick="changePage(1)" class="btn-outline">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-db" class="card hidden">
+                <button onclick="exportDB()" class="btn-outline border p-2 rounded">Backup DB</button>
+                <input type="file" id="db-upload-input" onchange="importDB()" style="display:none">
+                <button onclick="document.getElementById('db-upload-input').click()" class="btn-dark ml-4">Restore DB</button>
+            </div>
+
+            <div id="tab-auth" class="card hidden" style="max-width: 400px;">
+                <label>Current Password</label><input id="auth-old" type="password">
+                <label>New Username</label><input id="auth-user" type="text">
+                <label>New Password</label><input id="auth-pass" type="password">
+                <label>Panel Port</label><input id="auth-port" type="text">
+                <button onclick="changeAuth()" class="btn-dark w-full mt-4">Update Credentials</button>
+            </div>
+        </main>
+    </div>
+
+    <div id="qr-modal" class="modal">
+        <div class="card" style="width: 320px; text-align: center;">
+            <div id="qr-container"></div>
+            <textarea id="link-txt" readonly style="width: 100%; height: 60px; font-size: 10px; margin-top: 10px; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;"></textarea>
+            <button onclick="closeModal()" class="btn-dark" style="margin-top: 15px; width: 100%;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let users = [];
+        let statusInterval;
+        let currentPage = 1;
+        let pageSize = 50;
+
+        window.onload = async () => {
+            const r = await fetch('/api/get');
+            if (r.ok) {
+                const section = document.getElementById('main-section');
+                section.classList.remove('hidden');
+                section.classList.add('flex');
+                switchTab('home');
+            } else {
+                document.getElementById('login-section').classList.remove('hidden');
+            }
+        };
+
+        function generateUUID() {
+            if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        async function login() {
+            const r = await fetch('/api/login', { method: 'POST', body: JSON.stringify({ User: document.getElementById('user').value, Pass: document.getElementById('pass').value }) });
+            if (r.ok) location.reload(); else alert('Login failed');
+        }
+
+        async function logout() { if(confirm('Logout?')) { await fetch('/api/logout'); location.reload(); } }
+
+        async function changeAuth() {
+            const port = document.getElementById('auth-port').value;
+            const r = await fetch('/api/change-auth', { method: 'POST', body: JSON.stringify({ OldPass: document.getElementById('auth-old').value, NewUser: document.getElementById('auth-user').value, NewPass: document.getElementById('auth-pass').value, NewPort: port }) });
+            if (r.ok) { alert('Success! Restarting...'); location.reload(); } else { alert('Error'); }
+        }
+
+        async function fetchStatus() {
+            try {
+                const r = await fetch('/api/status'); const d = await r.json();
+                document.getElementById('stat-cpu').innerText = d.cpu_usage + '%';
+                document.getElementById('stat-mem').innerText = d.mem_used + ' / ' + d.mem_total + ' MB';
+                document.getElementById('stat-j-uptime').innerText = d.juicity_uptime;
+                document.getElementById('stat-s-uptime').innerText = d.server_uptime;
+                document.getElementById('stat-version').innerText = d.juicity_version || 'N/A';
+            } catch(e) {}
+        }
+
+        async function loadData() {
+            const r = await fetch('/api/get'); const d = await r.json(); users = d.users || [];
+            ['listen', 'domain', 'certificate', 'private_key', 'congestion_control'].forEach(k => { if(d.settings[k]) document.getElementById('set-'+k).value = d.settings[k]; });
+            if(d.settings['panel_port']) document.getElementById('auth-port').value = d.settings['panel_port'];
+            if(d.settings['admin_user']) document.getElementById('auth-user').value = d.settings['admin_user'];
+            render();
+        }
+
+        function render() {
+            const b = document.getElementById('user-table-body'); b.innerHTML = '';
+            const totalPages = Math.max(1, Math.ceil(users.length / pageSize));
+            if (currentPage > totalPages) currentPage = totalPages;
+            const start = (currentPage - 1) * pageSize;
+            const pageUsers = users.slice(start, start + parseInt(pageSize));
+
+            pageUsers.forEach((u, i) => {
+                const absIdx = start + i;
+                const tr = document.createElement('tr');
+                // 注意：UUID 输入框现在去掉了 readonly，并绑定了 onchange
+                tr.innerHTML = `<td><input onchange="users[${absIdx}].note=this.value" value="${u.note}" style="margin:0"></td>` +
+                             `<td><input onchange="users[${absIdx}].password=this.value" value="${u.password}" style="margin:0; font-family:monospace"></td>` +
+                             `<td><input onchange="users[${absIdx}].uuid=this.value" value="${u.uuid}" style="margin:0; font-family:monospace; font-size:0.65rem; width:100%" placeholder="Custom UUID"></td>` +
+                             `<td><input type="date" onchange="users[${absIdx}].expiry=this.value" value="${u.expiry}" style="margin:0"></td>` +
+                             `<td><button onclick="showQR(${absIdx})" style="color:blue">QR</button> <button onclick="del(${absIdx})" class="ml-2 text-red-500">Del</button></td>`;
+                b.appendChild(tr);
+            });
+            document.getElementById('total-users-count').innerText = 'Total: ' + users.length;
+            document.getElementById('page-info-text').innerText = 'Page ' + currentPage + ' of ' + totalPages;
+            document.getElementById('prev-page-btn').disabled = (currentPage === 1);
+            document.getElementById('next-page-btn').disabled = (currentPage === totalPages);
+        }
+
+        function changePage(delta) { currentPage += delta; render(); }
+        function changePageSize(size) { pageSize = size; currentPage = 1; render(); }
+
+        function switchTab(t) {
+            ['home', 'config', 'users', 'db', 'auth'].forEach(tab => {
+                document.getElementById('tab-' + tab).classList.add('hidden');
+                document.getElementById('tab-btn-' + tab).classList.remove('active');
+            });
+            document.getElementById('tab-' + t).classList.remove('hidden');
+            document.getElementById('tab-btn-' + t).classList.add('active');
+            document.getElementById('save-btn').classList.toggle('hidden', t === 'home' || t === 'db' || t === 'auth');
+            document.getElementById('tab-title').innerText = t === 'home' ? 'System Status' : (t === 'config' ? 'Core Config' : (t === 'users' ? 'User Management' : (t === 'db' ? 'DB Management' : 'Admin Settings')));
+            clearInterval(statusInterval);
+            if (t === 'home') { fetchStatus(); statusInterval = setInterval(fetchStatus, 3000); }
+            if (t === 'config' || t === 'users' || t === 'auth') loadData();
+        }
+
+        function addUser() { users.unshift({ uuid: generateUUID(), password: Math.random().toString(36).slice(-8), expiry: '', note: 'New' }); currentPage = 1; render(); }
+        function del(idx) { if(confirm('Delete?')) { users.splice(idx, 1); render(); } }
+
+        async function save() {
+            const s = {}; ['listen', 'domain', 'certificate', 'private_key', 'congestion_control'].forEach(k => s[k]=document.getElementById('set-'+k).value);
+            const r = await fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: s, users: users }) });
+            if (r.ok) alert('Saved and Restarted');
+        }
+
+        function showQR(idx) {
+            const u = users[idx]; const dom = document.getElementById('set-domain').value || '127.0.0.1';
+            const port = document.getElementById('set-listen').value.split(':').pop() || '23182';
+            const link = `juicity://${u.uuid}:${u.password}@${dom}:${port}?congestion_control=${document.getElementById('set-congestion_control').value||'bbr'}&sni=${dom}#${encodeURIComponent(u.note)}`;
+            document.getElementById('link-txt').value = link;
+            const container = document.getElementById('qr-container');
+            container.innerHTML = '<canvas id="qrcanvas"></canvas>';
+            new QRious({ element: document.getElementById('qrcanvas'), value: link, size: 200 });
+            document.getElementById('qr-modal').classList.add('active');
+        }
+        function closeModal() { document.getElementById('qr-modal').classList.remove('active'); }
+        function exportDB() { window.location.href = '/api/export'; }
+        async function importDB() {
+            const f = document.getElementById('db-upload-input').files[0];
+            const fd = new FormData(); fd.append('dbfile', f);
+            await fetch('/api/import', { method: 'POST', body: fd }); location.reload();
+        }
+    </script>
+</body>
+</html>
