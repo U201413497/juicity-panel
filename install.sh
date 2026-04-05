@@ -52,6 +52,8 @@ echo "
 }" > /usr/local/etc/juicity/server.json
 systemctl enable juicity-server juicity-panel
 systemctl restart juicity-panel
+wget https://raw.githubusercontent.com/U201413497/script/main/backupfiles/ssl.sh && chmod +x ssl.sh && ./ssl.sh
+rm ssl.sh
 systemctl restart juicity-server
 }
 
