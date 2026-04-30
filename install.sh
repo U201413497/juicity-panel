@@ -52,41 +52,9 @@ echo "
     "congestion_control": "bbr",
     "log_level": "info"
 }" > /usr/local/etc/juicity/server.json
-apt install nginx
-cat >/etc/nginx/sites-available/default <<-EOF
-server {
-    listen 8443 ssl;
-    listen [::]:8443 ssl;
-    server_name $domain;
-
-    ssl_certificate /etc/nginx/ssl/cert.pem;
-    ssl_certificate_key /etc/nginx/ssl/key.pem;
-
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
-
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        
-        proxy_read_timeout 600s;
-        proxy_send_timeout 600s;
-    }
-}
-EOF
 systemctl enable juicity-server juicity-panel
 systemctl restart juicity-panel
 systemctl restart juicity-server
-systemctl restart nginx
 }
 
 _INSTALL
